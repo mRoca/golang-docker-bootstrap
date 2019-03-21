@@ -1,0 +1,10 @@
+version: '3.7'
+
+services:
+  cli:
+    build: docker/dev
+    working_dir: /go/src/${PACKAGE_NAME}
+    command: scripts/start-dev.sh
+    init: true
+    volumes:
+      - ./src/:/go/src

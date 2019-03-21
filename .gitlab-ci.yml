@@ -1,0 +1,39 @@
+image:
+  name: docker/compose:1.23.2 # https://github.com/docker/compose/blob/master/Dockerfile.run
+  entrypoint: ["/bin/sh", "-c"]
+
+services:
+  - docker:dind
+
+variables:
+  DOCKER_HOST: tcp://docker:2375/
+  DOCKER_DRIVER: overlay2
+  PACKAGE_NAME: github.com/mRoca/golang-docker-bootstrap
+
+before_script:
+  - command -v docker > /dev/null 2>&1 && docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+stages:
+  - test
+  - build
+
+test:
+  stage: test
+  script:
+    - bin/ci-cmd make build-docker-update
+    - bin/ci-cmd make build-dev
+    - bin/ci-cmd make test
+    - echo "Tests passed O:-)"
+
+build:cli:
+  stage: build
+  script:
+    - echo ${CI_REGISTRY_IMAGE}-builder:latest ${CI_REGISTRY_IMAGE}:latest alpine:3.9 | xargs -P10 -n1 docker pull 1>/dev/null || true
+    - docker build --build-arg PACKAGE_NAME -t ${CI_REGISTRY_IMAGE}-builder:latest --cache-from ${CI_REGISTRY_IMAGE}-builder:latest -f docker/prod/Dockerfile --target builder .
+    - docker build --build-arg PACKAGE_NAME -t ${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_NAME} -t ${CI_REGISTRY_IMAGE}:latest --cache-from ${CI_REGISTRY_IMAGE}-builder:latest --cache-from ${CI_REGISTRY_IMAGE}:latest -f docker/prod/Dockerfile .
+    - docker push ${CI_REGISTRY_IMAGE}-build:latest
+    - docker push ${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_NAME}
+    - docker push ${CI_REGISTRY_IMAGE}:latest
+  only:
+    - master
+    - tags

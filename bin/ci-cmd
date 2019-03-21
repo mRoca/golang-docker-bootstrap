@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+set -e
+
+COMMAND=$1
+
+[ -z "$COMMAND" ] && echo "No command found" && exit 1
+
+command -v "$COMMAND" > /dev/null 2>&1 || time -f"apk execution time: %E" -a apk add --no-cache "$COMMAND"
+command -v "$COMMAND" > /dev/null 2>&1 || (echo "Unable to install the $COMMAND command" && exit 1)
+
+time -f"${COMMAND} execution time: %E" -a "$@"
